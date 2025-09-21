@@ -1,8 +1,0 @@
-config frpc 'common'
-	option server_addr '127.0.0.1'
-	option server_port '7000'
-
-config init 'instance1'
-	option stdout '1'
-	option stderr '1'
-	option respawn '1'

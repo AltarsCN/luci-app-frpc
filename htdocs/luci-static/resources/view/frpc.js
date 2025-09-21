@@ -253,12 +253,12 @@ return view.extend({
 		s.tab('extra', _('Additional'));
 		s.tab('init', _('Startup Settings'));
 
-		defTabOpts(s, 'basic', grpBasic, {optional: true});
-		defTabOpts(s, 'auth', grpAuth, {optional: true});
-		defTabOpts(s, 'securitytls', grpSecurityTLS, {optional: true});
-		defTabOpts(s, 'web', grpWeb, {optional: true});
-		defTabOpts(s, 'logging', grpLogging, {optional: true});
-		defTabOpts(s, 'extra', grpExtra, {optional: true});
+		defTabOpts(s, 'basic', grpBasic);
+		defTabOpts(s, 'auth', grpAuth);
+		defTabOpts(s, 'securitytls', grpSecurityTLS);
+		defTabOpts(s, 'web', grpWeb);
+		defTabOpts(s, 'logging', grpLogging);
+		defTabOpts(s, 'extra', grpExtra);
 
 		o = s.taboption('init', form.SectionValue, 'init', form.TypedSection, 'init', _('Startup Settings'));
 		s = o.subsection;
