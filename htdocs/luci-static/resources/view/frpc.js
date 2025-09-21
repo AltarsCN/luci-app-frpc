@@ -24,7 +24,14 @@ var commonConf = [
 	[form.ListValue, 'log_level', _('Log level'), _('LogLevel specifies the minimum log level. Valid values are "trace", "debug", "info", "warn", and "error".<br />By default, this value is "info".'), {values: ['trace', 'debug', 'info', 'warn', 'error']}],
 	[form.Value, 'log_max_days', _('Log max days'), _('LogMaxDays specifies the maximum number of days to store log information before deletion. This is only used if LogWay == "file".<br />By default, this value is 0.'), {datatype: 'uinteger'}],
 	[form.Flag, 'disable_log_color', _('Disable log color'), _('DisableLogColor disables log colors when LogWay == "console" when set to true.'), {datatype: 'bool', default: 'false'}],
-	[form.Value, 'token', _('Token'), _('Token specifies the authorization token used to create keys to be sent to the server. The server must have a matching token for authorization to succeed. <br />By default, this value is "".')],
+	// Authentication method: token (default) or oidc
+	[form.ListValue, 'auth_method', _('Auth method'), _('Authentication method to connect frpc to frps. Valid values: "token" (default) or "oidc".') , {values: ['token', 'oidc'], default: 'token'}],
+	[form.Value, 'token', _('Token'), _('Token specifies the shared authorization token (auth.method=token). Leave empty to disable token authentication.'), {depends: {auth_method: 'token'}}],
+	// OIDC client credentials (only when auth_method = oidc)
+	[form.Value, 'oidc_client_id', _('OIDC Client ID'), _('OIDC clientID used when auth.method = "oidc".'), {depends: {auth_method: 'oidc'}}],
+	[form.Value, 'oidc_client_secret', _('OIDC Client Secret'), _('OIDC clientSecret used when auth.method = "oidc".'), {password: true, depends: {auth_method: 'oidc'}}],
+	[form.Value, 'oidc_audience', _('OIDC Audience'), _('OIDC audience used when auth.method = "oidc".'), {depends: {auth_method: 'oidc'}}],
+	[form.Value, 'oidc_token_endpoint_url', _('OIDC Token Endpoint URL'), _('OIDC token endpoint URL used when auth.method = "oidc".'), {depends: {auth_method: 'oidc'}}],
 	[form.Value, 'admin_addr', _('Admin address'), _('AdminAddr specifies the address that the admin server binds to.<br />By default, this value is "0.0.0.0".'), {datatype: 'ipaddr'}],
 	[form.Value, 'admin_port', _('Admin port'), _('AdminPort specifies the port for the admin server to listen on. If this value is 0, the admin server will not be started.<br />By default, this value is 0.'), {datatype: 'port'}],
 	[form.Value, 'admin_user', _('Admin user'), _('AdminUser specifies the username that the admin server will use for login.<br />By default, this value is "admin".')],
@@ -35,7 +42,18 @@ var commonConf = [
 	[form.Flag, 'login_fail_exit', _('Exit when login fail'), _('LoginFailExit controls whether or not the client should exit after a failed login attempt. If false, the client will retry until a login attempt succeeds.<br />By default, this value is true.'), {datatype: 'bool', default: 'true'}],
 	// Add quic to supported protocols
 	[form.ListValue, 'protocol', _('Protocol'), _('Protocol specifies the transport protocol used to connect frpc to frps. Valid values are "tcp", "kcp", "quic" and "websocket".<br />By default, this value is "tcp".'), {values: ['tcp', 'kcp', 'quic', 'websocket']}],
+	// QUIC advanced
+	[form.Value, 'quic_keepalive_period', _('QUIC keepalive period'), _('QUIC keepalivePeriod (seconds).'), {datatype: 'uinteger'}],
+	[form.Value, 'quic_max_idle_timeout', _('QUIC max idle timeout'), _('QUIC maxIdleTimeout (seconds).'), {datatype: 'uinteger'}],
+	[form.Value, 'quic_max_incoming_streams', _('QUIC max incoming streams'), _('QUIC maxIncomingStreams.'), {datatype: 'uinteger'}],
+	// TCP mux keepalive
+	[form.Value, 'tcp_mux_keepalive_interval', _('TCP mux keepalive interval'), _('tcpMuxKeepaliveInterval (seconds).'), {datatype: 'uinteger'}],
 	[form.Flag, 'tls_enable', _('TLS'), _('TLSEnable specifies whether or not TLS should be used when communicating with the server.'), {datatype: 'bool'}],
+	[form.Value, 'tls_cert_file', _('TLS cert file'), _('Client TLS certFile path.'), {datatype: 'file'}],
+	[form.Value, 'tls_key_file', _('TLS key file'), _('Client TLS keyFile path.'), {datatype: 'file'}],
+	[form.Value, 'tls_trusted_ca_file', _('TLS trusted CA file'), _('Client TLS trustedCaFile path.'), {datatype: 'file'}],
+	[form.Value, 'tls_server_name', _('TLS server name'), _('Override TLS serverName for SNI.')],
+	[form.Flag, 'tls_disable_custom_first_byte', _('TLS disable custom first byte'), _('Disable custom first byte when using TLS.'), {datatype: 'bool'}],
 	[form.Value, 'heartbeat_interval', _('Heartbeat interval'), _('HeartBeatInterval specifies at what interval heartbeats are sent to the server, in seconds. It is not recommended to change this value.<br />By default, this value is 30.'), {datatype: 'uinteger'}],
 	[form.Value, 'heartbeat_timeout', _('Heartbeat timeout'), _('HeartBeatTimeout specifies the maximum allowed heartbeat response delay before the connection is terminated, in seconds. It is not recommended to change this value.<br />By default, this value is 90.'), {datatype: 'uinteger'}],
 	[form.DynamicList, '_', _('Additional settings'), _('This list can be used to specify some additional parameters which have not been included in this LuCI.'), {placeholder: 'Key-A=Value-A'}]

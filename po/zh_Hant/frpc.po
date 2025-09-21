@@ -476,3 +476,40 @@ msgstr ""
 #: applications/luci-app-frpc/root/usr/share/luci/menu.d/luci-app-frpc.json:3
 msgid "frp Client"
 msgstr "frp用戶端"
+
+# 新增 OIDC、QUIC、認證方式等
+msgid "Auth method"
+msgstr "認證方式"
+
+msgid "Authentication method to connect frpc to frps. Valid values: \"token\" (default) or \"oidc\"."
+msgstr "連接 frpc 到 frps 的認證方式。有效值：\"token\"(預設) 或 \"oidc\"。"
+
+msgid "OIDC Client ID"
+msgstr "OIDC 用戶端 ID"
+
+msgid "OIDC clientID used when auth.method = \"oidc\"."
+msgstr "當 auth.method = \"oidc\" 時使用的 OIDC clientID。"
+
+msgid "OIDC Client Secret"
+msgstr "OIDC 用戶端密鑰"
+
+msgid "OIDC clientSecret used when auth.method = \"oidc\"."
+msgstr "當 auth.method = \"oidc\" 時使用的 OIDC clientSecret。"
+
+msgid "OIDC Audience"
+msgstr "OIDC 受眾"
+
+msgid "OIDC audience used when auth.method = \"oidc\"."
+msgstr "當 auth.method = \"oidc\" 時使用的 OIDC audience。"
+
+msgid "OIDC Token Endpoint URL"
+msgstr "OIDC 權杖端點 URL"
+
+msgid "OIDC token endpoint URL used when auth.method = \"oidc\"."
+msgstr "當 auth.method = \"oidc\" 時使用的 OIDC token endpoint URL。"
+
+msgid "Protocol specifies the transport protocol used to connect frpc to frps. Valid values are \"tcp\", \"kcp\", \"quic\" and \"websocket\".<br />By default, this value is \"tcp\"."
+msgstr "Protocol 指定連接 frpc 與 frps 的傳輸協定。有效值為 \"tcp\"、\"kcp\"、\"quic\" 和 \"websocket\"。<br />預設值為 \"tcp\"。"
+
+msgid "Token specifies the shared authorization token (auth.method=token). Leave empty to disable token authentication."
+msgstr "Token 指定共用授權權杖（auth.method=token）。留空則停用權杖認證。"
