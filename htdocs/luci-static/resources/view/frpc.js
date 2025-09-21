@@ -101,6 +101,23 @@ var pluginConf = [
 		datatype: 'file', placeholder: '/var/run/docker.sock', default: '/var/run/docker.sock'}],
 ];
 
+// Batch B advanced proxy parameters
+var advProxyConf = [
+	[form.Value, 'bandwidth_limit', _('Bandwidth limit'), _('transport.bandwidthLimit, e.g. 1MB, 100KB, 1GB.'), {modalonly: true}],
+	[form.ListValue, 'bandwidth_limit_mode', _('Bandwidth limit mode'), _('transport.bandwidthLimitMode.'), {values: ['client', 'server'], modalonly: true}],
+	[form.ListValue, 'proxy_protocol_version', _('Proxy protocol version'), _('transport.proxyProtocolVersion.'), {values: ['', 'v1', 'v2'], modalonly: true}],
+	[form.Value, 'lb_group', _('LoadBalancer group'), _('loadBalancer.group name.'), {modalonly: true}],
+	[form.Value, 'lb_group_key', _('LoadBalancer group key'), _('loadBalancer.groupKey secret.'), {modalonly: true}],
+	[form.ListValue, 'hc_type', _('Health check type'), _('healthCheck.type'), {values: ['', 'tcp', 'http'], modalonly: true}],
+	[form.Value, 'hc_path', _('Health check path'), _('healthCheck.path (HTTP only).'), {modalonly: true, depends: {hc_type: 'http'}}],
+	[form.Value, 'hc_timeout', _('Health check timeout(s)'), _('healthCheck.timeoutSeconds'), {datatype: 'uinteger', modalonly: true}],
+	[form.Value, 'hc_max_failed', _('Health check max failed'), _('healthCheck.maxFailed'), {datatype: 'uinteger', modalonly: true}],
+	[form.Value, 'hc_interval', _('Health check interval(s)'), _('healthCheck.intervalSeconds'), {datatype: 'uinteger', modalonly: true}],
+	[form.Value, 'server_user', _('Server user (visitor)'), _('serverUser for visitor role'), {modalonly: true, depends: {role: 'visitor'}}],
+	[form.DynamicList, 'extra_options', _('Extra options'), _('Append raw key=value lines at end of this proxy block'), {placeholder: 'foo.bar=value', modalonly: true}],
+	[form.DynamicList, 'extra_options_plugin', _('Extra plugin options'), _('Append raw key=value lines inside [proxies.plugin] section'), {placeholder: 'extraKey=extraValue', modalonly: true, depends: {plugin: 'http_proxy'}}]
+];
+
 function setParams(o, params) {
 	if (!params) return;
 	for (var key in params) {
@@ -267,6 +284,10 @@ return view.extend({
 
 		// Plugin
 		defTabOpts(s, 'plugin', pluginConf, {modalonly: true});
+
+		// Advanced
+		s.tab('advanced', _('Advanced Settings'));
+		defTabOpts(s, 'advanced', advProxyConf, {optional: true});
 
 		return m.render();
 	}

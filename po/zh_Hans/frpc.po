@@ -516,3 +516,85 @@ msgstr "Protocol 指定连接 frpc 与 frps 的传输协议。有效值为 \"tcp
 
 msgid "Token specifies the shared authorization token (auth.method=token). Leave empty to disable token authentication."
 msgstr "Token 指定共享授权令牌（auth.method=token）。留空则禁用令牌认证。"
+
+# Batch B 高级代理设置
+msgid "Advanced Settings"
+msgstr "高级设置"
+
+msgid "Bandwidth limit"
+msgstr "带宽限制"
+
+msgid "transport.bandwidthLimit, e.g. 1MB, 100KB, 1GB."
+msgstr "transport.bandwidthLimit，例如 1MB、100KB、1GB。"
+
+msgid "Bandwidth limit mode"
+msgstr "带宽限制模式"
+
+msgid "transport.bandwidthLimitMode."
+msgstr "transport.bandwidthLimitMode。"
+
+msgid "Proxy protocol version"
+msgstr "Proxy Protocol 版本"
+
+msgid "transport.proxyProtocolVersion."
+msgstr "transport.proxyProtocolVersion。"
+
+msgid "LoadBalancer group"
+msgstr "负载均衡组"
+
+msgid "loadBalancer.group name."
+msgstr "loadBalancer.group 名称。"
+
+msgid "LoadBalancer group key"
+msgstr "负载均衡组密钥"
+
+msgid "loadBalancer.groupKey secret."
+msgstr "loadBalancer.groupKey 密钥。"
+
+msgid "Health check type"
+msgstr "健康检查类型"
+
+msgid "healthCheck.type"
+msgstr "healthCheck.type"
+
+msgid "Health check path"
+msgstr "健康检查路径"
+
+msgid "healthCheck.path (HTTP only)."
+msgstr "healthCheck.path（仅 HTTP）。"
+
+msgid "Health check timeout(s)"
+msgstr "健康检查超时(秒)"
+
+msgid "healthCheck.timeoutSeconds"
+msgstr "healthCheck.timeoutSeconds"
+
+msgid "Health check max failed"
+msgstr "健康检查最大失败次数"
+
+msgid "healthCheck.maxFailed"
+msgstr "healthCheck.maxFailed"
+
+msgid "Health check interval(s)"
+msgstr "健康检查间隔(秒)"
+
+msgid "healthCheck.intervalSeconds"
+msgstr "healthCheck.intervalSeconds"
+
+msgid "Server user (visitor)"
+msgstr "服务器用户（visitor）"
+
+msgid "serverUser for visitor role"
+msgstr "visitor 角色使用的 serverUser"
+
+msgid "Extra options"
+msgstr "额外选项"
+
+msgid "Append raw key=value lines at end of this proxy block"
+msgstr "追加原始 key=value 行到该代理块末尾"
+
+msgid "Extra plugin options"
+msgstr "插件额外选项"
+
+msgid "Append raw key=value lines inside [proxies.plugin] section"
+msgstr "在 [proxies.plugin] 段内追加原始 key=value 行"

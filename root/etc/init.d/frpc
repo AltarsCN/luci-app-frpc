@@ -78,8 +78,20 @@ gen_config() {
 	login_fail_exit=$(uci_get common login_fail_exit "")
 	disable_log_color=$(uci_get common disable_log_color "")
 
-	# Write TOML
-		echo "# Generated at $(date +%Y-%m-%d_%H:%M:%S)" > "$TMP_CONFIG_TOML.tmp"
+	# OIDC warning collection
+	local _oidc_warn=""
+	if [ "$auth_method" = "oidc" ]; then
+		[ -z "$oidc_client_id" ] && _oidc_warn="${_oidc_warn} clientID"
+		[ -z "$oidc_client_secret" ] && _oidc_warn="${_oidc_warn} clientSecret"
+		[ -z "$oidc_audience" ] && _oidc_warn="${_oidc_warn} audience"
+		[ -z "$oidc_token_endpoint_url" ] && _oidc_warn="${_oidc_warn} tokenEndpointURL"
+	fi
+
+	# Write TOML header
+	{
+		printf '# Generated at %s\n' "$(date +%Y-%m-%d_%H:%M:%S)"
+		[ -n "$_oidc_warn" ] && printf '# WARNING: OIDC selected but missing:%s (auth likely to fail)\n' "$_oidc_warn"
+	} > "$TMP_CONFIG_TOML.tmp"
 	{
 		[ "$log_file" = "" ] || echo "log.file = \"$log_file\""
 		[ "$log_level" = "" ] || echo "log.level = \"$log_level\""
@@ -141,6 +153,8 @@ gen_config() {
 		uci -q show $CONFIG_UCI | grep "=conf" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r sec; do
 			[ "$sec" = "common" ] && continue
 			local type name local_ip local_port remote_port use_encryption use_compression role server_name sk custom_domains subdomain locations http_user http_pwd host_header_rewrite plugin plugin_http_user plugin_http_passwd plugin_user plugin_passwd plugin_unix_path
+			local bandwidth_limit bandwidth_limit_mode proxy_protocol_version lb_group lb_group_key
+			local hc_type hc_path hc_timeout hc_max_failed hc_interval server_user
 			type=$(uci -q get $CONFIG_UCI.$sec.type)
 			name=$(uci -q get $CONFIG_UCI.$sec.name)
 			[ -z "$name" ] && continue
@@ -151,6 +165,7 @@ gen_config() {
 			use_encryption=$(uci -q get $CONFIG_UCI.$sec.use_encryption)
 			use_compression=$(uci -q get $CONFIG_UCI.$sec.use_compression)
 			role=$(uci -q get $CONFIG_UCI.$sec.role)
+			server_user=$(uci -q get $CONFIG_UCI.$sec.server_user)
 			server_name=$(uci -q get $CONFIG_UCI.$sec.server_name)
 			sk=$(uci -q get $CONFIG_UCI.$sec.sk)
 			custom_domains=$(uci -q get $CONFIG_UCI.$sec.custom_domains)
@@ -165,24 +180,55 @@ gen_config() {
 			plugin_user=$(uci -q get $CONFIG_UCI.$sec.plugin_user)
 			plugin_passwd=$(uci -q get $CONFIG_UCI.$sec.plugin_passwd)
 			plugin_unix_path=$(uci -q get $CONFIG_UCI.$sec.plugin_unix_path)
+			bandwidth_limit=$(uci -q get $CONFIG_UCI.$sec.bandwidth_limit)
+			bandwidth_limit_mode=$(uci -q get $CONFIG_UCI.$sec.bandwidth_limit_mode)
+			proxy_protocol_version=$(uci -q get $CONFIG_UCI.$sec.proxy_protocol_version)
+			lb_group=$(uci -q get $CONFIG_UCI.$sec.lb_group)
+			lb_group_key=$(uci -q get $CONFIG_UCI.$sec.lb_group_key)
+			hc_type=$(uci -q get $CONFIG_UCI.$sec.hc_type)
+			hc_path=$(uci -q get $CONFIG_UCI.$sec.hc_path)
+			hc_timeout=$(uci -q get $CONFIG_UCI.$sec.hc_timeout)
+			hc_max_failed=$(uci -q get $CONFIG_UCI.$sec.hc_max_failed)
+			hc_interval=$(uci -q get $CONFIG_UCI.$sec.hc_interval)
+			local visitor_flag="0"; [ "$role" = "visitor" ] && visitor_flag="1"
 
-			echo "[[proxies]]"
+			if [ "$visitor_flag" = "1" ]; then
+				echo "[[visitors]]"
+			else
+				echo "[[proxies]]"
+			fi
 			echo "name = \"$name\""
 			echo "type = \"$type\""
-			[ -n "$local_ip" ] && echo "localIP = \"$local_ip\""
-			[ -n "$local_port" ] && echo "localPort = $local_port"
-			[ -n "$remote_port" ] && [ "$remote_port" != '#' ] && echo "remotePort = $remote_port"
+			[ -n "$local_ip" ] && [ "$visitor_flag" = "0" ] && echo "localIP = \"$local_ip\""
+			[ -n "$local_port" ] && [ "$visitor_flag" = "0" ] && echo "localPort = $local_port"
+			[ -n "$remote_port" ] && [ "$remote_port" != '#' ] && [ "$visitor_flag" = "0" ] && echo "remotePort = $remote_port"
 			[ "$use_encryption" = 1 ] && echo "transport.useEncryption = true"
 			[ "$use_compression" = 1 ] && echo "transport.useCompression = true"
-			[ -n "$role" ] && echo "role = \"$role\""
-			[ -n "$server_name" ] && echo "serverName = \"$server_name\""
+			[ "$visitor_flag" = "1" ] && [ -n "$server_name" ] && echo "serverName = \"$server_name\""
+			[ "$visitor_flag" = "1" ] && [ -n "$server_user" ] && echo "serverUser = \"$server_user\""
+			[ "$visitor_flag" = "0" ] && [ -n "$role" ] && echo "role = \"$role\""
+			[ "$visitor_flag" = "0" ] && [ -n "$server_name" ] && echo "serverName = \"$server_name\""
 			[ -n "$sk" ] && echo "secretKey = \"$sk\""
-			[ -n "$custom_domains" ] && echo "customDomains = [\"$custom_domains\"]"
+			if [ -n "$custom_domains" ]; then
+				local _cd_line=""; custom_domains=${custom_domains//,/ } ; for X in $custom_domains; do [ -n "$_cd_line" ] && _cd_line="$_cd_line, "; _cd_line="$_cd_line\"$X\""; done; [ -n "$_cd_line" ] && echo "customDomains = [$_cd_line]"; fi
 			[ -n "$subdomain" ] && echo "subdomain = \"$subdomain\""
-			[ -n "$locations" ] && echo "locations = [\"$locations\"]"
+			if [ -n "$locations" ]; then
+				local _loc_line=""; locations=${locations//,/ } ; for X in $locations; do [ -n "$_loc_line" ] && _loc_line="$_loc_line, "; _loc_line="$_loc_line\"$X\""; done; [ -n "$_loc_line" ] && echo "locations = [$_loc_line]"; fi
 			[ -n "$http_user" ] && echo "httpUser = \"$http_user\""
 			[ -n "$http_pwd" ] && echo "httpPassword = \"$http_pwd\""
 			[ -n "$host_header_rewrite" ] && echo "hostHeaderRewrite = \"$host_header_rewrite\""
+			[ -n "$bandwidth_limit" ] && echo "transport.bandwidthLimit = \"$bandwidth_limit\""
+			[ -n "$bandwidth_limit_mode" ] && echo "transport.bandwidthLimitMode = \"$bandwidth_limit_mode\""
+			[ -n "$proxy_protocol_version" ] && echo "transport.proxyProtocolVersion = \"$proxy_protocol_version\""
+			[ -n "$lb_group" ] && echo "loadBalancer.group = \"$lb_group\""
+			[ -n "$lb_group_key" ] && echo "loadBalancer.groupKey = \"$lb_group_key\""
+			if [ -n "$hc_type$hc_path$hc_timeout$hc_max_failed$hc_interval" ]; then
+				[ -n "$hc_type" ] && echo "healthCheck.type = \"$hc_type\""
+				[ -n "$hc_path" ] && echo "healthCheck.path = \"$hc_path\""
+				[ -n "$hc_timeout" ] && echo "healthCheck.timeoutSeconds = $hc_timeout"
+				[ -n "$hc_max_failed" ] && echo "healthCheck.maxFailed = $hc_max_failed"
+				[ -n "$hc_interval" ] && echo "healthCheck.intervalSeconds = $hc_interval"
+			fi
 			if [ -n "$plugin" ]; then
 				echo "[proxies.plugin]"
 				echo "type = \"$plugin\""
@@ -191,10 +237,15 @@ gen_config() {
 				[ -n "$plugin_user" ] && echo "user = \"$plugin_user\""
 				[ -n "$plugin_passwd" ] && echo "passwd = \"$plugin_passwd\""
 				[ -n "$plugin_unix_path" ] && echo "unixPath = \"$plugin_unix_path\""
+				uci -q show frpc.$sec | sed -n "s/^frpc.$sec.extra_options_plugin='\(.*\)'/\1/p" | while read -r kvp; do
+					[ -z "$kvp" ] && continue; case "$kvp" in *=*) echo "$kvp" ;; esac
+				done
 			fi
-			# End proxy section
+			uci -q show frpc.$sec | sed -n "s/^frpc.$sec.extra_options='\(.*\)'/\1/p" | while read -r kv; do
+				[ -z "$kv" ] && continue; case "$kv" in *=*) echo "$kv" ;; esac
+			done
 			echo
-		done
+			done
 	} > "$TMP_CONFIG_TOML"
 }
 
