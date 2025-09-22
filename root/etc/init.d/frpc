@@ -93,7 +93,9 @@ gen_config() {
 		[ -n "$_oidc_warn" ] && printf '# WARNING: OIDC selected but missing:%s (auth likely to fail)\n' "$_oidc_warn"
 	} > "$TMP_CONFIG_TOML.tmp"
 	{
-		[ -n "$log_file" ] && [ "$log_file" != "/dev/null" ] && echo "log.to = \"$log_file\""
+		# Only output log.to if user explicitly configured a non-default log file
+		# Let frp use console output by default for better integration with OpenWrt logging
+		[ -n "$log_file" ] && [ "$log_file" != "/var/log/frpc.log" ] && [ "$log_file" != "console" ] && [ "$log_file" != "/dev/null" ] && echo "log.to = \"$log_file\""
 		[ "$log_level" = "" ] || echo "log.level = \"$log_level\""
 		[ "$log_max_days" = "" ] || echo "log.maxDays = $log_max_days"
 		[ "$disable_log_color" = "" ] || echo "log.disableColor = $( [ "$disable_log_color" = 1 ] && echo true || echo false )"
@@ -102,7 +104,7 @@ gen_config() {
 		echo "serverPort = $server_port"
 		[ "$protocol" = "" ] || echo "transport.protocol = \"$protocol\""
 		[ "$tcp_mux_keepalive_interval" = "" ] || echo "transport.tcpMuxKeepaliveInterval = $tcp_mux_keepalive_interval"
-		[ "$tcp_mux" = "" ] || echo "transport.tcpMux = $( [ "$tcp_mux" = 1 ] && echo true || echo false )"
+		echo "transport.tcpMux = $([ "$tcp_mux" = 1 ] && echo true || echo false)"
 		[ "$tls_enable" = "" ] || echo "transport.tls.enable = $( [ "$tls_enable" = 1 ] && echo true || echo false )"
 		[ "$heartbeat_interval" = "" ] && [ "$heartbeat_timeout" = "" ] || {
 			[ "$heartbeat_interval" = "" ] || echo "transport.heartbeatInterval = $heartbeat_interval"
