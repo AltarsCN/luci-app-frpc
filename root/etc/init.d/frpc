@@ -93,7 +93,7 @@ gen_config() {
 		[ -n "$_oidc_warn" ] && printf '# WARNING: OIDC selected but missing:%s (auth likely to fail)\n' "$_oidc_warn"
 	} > "$TMP_CONFIG_TOML.tmp"
 	{
-		[ "$log_file" = "" ] || echo "log.file = \"$log_file\""
+		[ -n "$log_file" ] && [ "$log_file" != "/dev/null" ] && echo "log.to = \"$log_file\""
 		[ "$log_level" = "" ] || echo "log.level = \"$log_level\""
 		[ "$log_max_days" = "" ] || echo "log.maxDays = $log_max_days"
 		[ "$disable_log_color" = "" ] || echo "log.disableColor = $( [ "$disable_log_color" = 1 ] && echo true || echo false )"
