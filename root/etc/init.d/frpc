@@ -134,16 +134,14 @@ gen_config() {
 		}
 
 		# Proxies: iterate sections named 'conf' excluding 'common'
-		# Additional settings (common._ list) dynamic injection
-		local _added_keys
+		# Additional settings dynamic injection: legacy '_' and new 'extra_settings'
+		local _added_keys _legacy_list _new_list
 		_added_keys=""
-		uci -q show frpc.common | sed -n "s/^frpc.common._='\(.*\)'/\1/p" | while read -r kv; do
+		_legacy_list=$(uci -q show frpc.common | sed -n "s/^frpc.common._='\(.*\)'/\1/p")
+		_new_list=$(uci -q show frpc.common | sed -n "s/^frpc.common.extra_settings='\(.*\)'/\1/p")
+		for kv in $_legacy_list $_new_list; do
 			[ -z "$kv" ] && continue
-			case "$kv" in
-				*=*) key="${kv%%=*}" ; value="${kv#*=}" ;;
-				*) continue ;;
-			esac
-			# Skip duplicates of earlier explicit keys
+			case "$kv" in *=*) key="${kv%%=*}" ; value="${kv#*=}" ;; *) continue ;; esac
 			if echo "$_added_keys" | grep -qw "$key" ; then
 				continue
 			fi

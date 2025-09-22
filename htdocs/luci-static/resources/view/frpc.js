@@ -7,6 +7,7 @@
 
 //	[Widget, Option, Title, Description, {Param: 'Value'}],
 var startupConf = [
+	[form.Flag, 'enabled', _('Enabled'), _('Enable or disable the frpc service (init.enabled).')],
 	[form.Flag, 'stdout', _('Log stdout')],
 	[form.Flag, 'stderr', _('Log stderr')],
 	[widgets.UserSelect, 'user', _('Run daemon as user')],
@@ -68,8 +69,9 @@ var grpLogging = [
 	[form.Flag, 'disable_log_color', _('Disable log color'), _('DisableLogColor disables log colors when LogWay == "console" when set to true.'), {datatype: 'bool', default: 'false'}]
 ];
 
+// Renamed '_' -> 'extra_settings' (keep backward compatibility)
 var grpExtra = [
-	[form.DynamicList, '_', _('Additional settings'), _('This list can be used to specify some additional parameters which have not been included in this LuCI.'), {placeholder: 'Key-A=Value-A'}]
+	[form.DynamicList, 'extra_settings', _('Additional settings'), _('This list can be used to specify some additional parameters which have not been included in this LuCI.'), {placeholder: 'Key-A=Value-A'}]
 ];
 
 var baseProxyConf = [
@@ -175,6 +177,16 @@ function defTabOpts(s, t, opts, params) {
 		var o = s.taboption(t, opt[0], opt[1], opt[2], opt[3]);
 		setParams(o, opt[4]);
 		setParams(o, params);
+		if (o instanceof form.DynamicList) {
+			(function(orig) {
+				o.remove = function(section_id) {
+					var cur = this.map.data.get(this.map.config, section_id, this.option);
+					if (cur == null)
+						return Promise.resolve();
+					return orig.apply(this, arguments);
+				};
+			})(o.remove);
+		}
 	}
 }
 
@@ -259,6 +271,13 @@ return view.extend({
 		defTabOpts(s, 'web', grpWeb);
 		defTabOpts(s, 'logging', grpLogging);
 		defTabOpts(s, 'extra', grpExtra);
+
+		// Backward compatibility: migrate old '_' list if present
+		var oldList = m.data.get('frpc', 'common', '_');
+		var newList = m.data.get('frpc', 'common', 'extra_settings');
+		if (oldList && (!newList || newList.length === 0)) {
+			m.data.set('frpc', 'common', 'extra_settings', oldList);
+		}
 
 		o = s.taboption('init', form.SectionValue, 'init', form.TypedSection, 'init', _('Startup Settings'));
 		s = o.subsection;
