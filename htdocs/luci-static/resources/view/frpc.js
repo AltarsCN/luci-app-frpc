@@ -23,10 +23,14 @@ var grpBasic = [
 	[form.Value, 'server_port', _('Server port'), _('ServerPort specifies the port to connect to the server on.<br />By default, this value is 7000.'), {datatype: 'port'}],
 	[form.ListValue, 'protocol', _('Protocol'), _('Protocol specifies the transport protocol used to connect frpc to frps. Valid values are "tcp", "kcp", "quic" and "websocket".<br />By default, this value is "tcp".'), {values: ['tcp', 'kcp', 'quic', 'websocket']}],
 	[form.Value, 'http_proxy', _('HTTP proxy'), _('HttpProxy specifies a proxy address to connect to the server through. If this value is "", the server will be connected to directly.<br />By default, this value is read from the "http_proxy" environment variable.')],
+	[form.Value, 'dial_server_timeout', _('Dial server timeout'), _('transport.dialServerTimeout seconds (connect timeout).'), {datatype: 'uinteger'}],
+	[form.Value, 'dial_server_keepalive', _('Dial server keepalive'), _('transport.dialServerKeepalive seconds (TCP keepalive between frpc and frps).'), {datatype: 'uinteger'}],
+	[form.Value, 'connect_server_local_ip', _('Connect server local IP'), _('transport.connectServerLocalIP: local bind address when dialing server (tcp/websocket).'), {datatype: 'ipaddr'}],
 	[form.Flag, 'tcp_mux', _('TCP mux'), _('TcpMux toggles TCP stream multiplexing. This allows multiple requests from a client to share a single TCP connection. If this value is true, the server must have TCP multiplexing enabled as well.<br />By default, this value is true.'), {datatype: 'bool', default: 'true'}],
 	[form.Value, 'tcp_mux_keepalive_interval', _('TCP mux keepalive interval'), _('tcpMuxKeepaliveInterval (seconds).'), {datatype: 'uinteger'}],
 	[form.Value, 'heartbeat_interval', _('Heartbeat interval'), _('HeartBeatInterval specifies at what interval heartbeats are sent to the server, in seconds. It is not recommended to change this value.<br />By default, this value is 30.'), {datatype: 'uinteger'}],
 	[form.Value, 'heartbeat_timeout', _('Heartbeat timeout'), _('HeartBeatTimeout specifies the maximum allowed heartbeat response delay before the connection is terminated, in seconds. It is not recommended to change this value.<br />By default, this value is 90.'), {datatype: 'uinteger'}],
+	[form.Value, 'udp_packet_size', _('UDP packet size'), _('udpPacketSize bytes (default 1500).'), {datatype: 'uinteger'}],
 	[form.Value, 'user', _('User'), _('User specifies a prefix for proxy names to distinguish them from other clients. If this value is not "", proxy names will automatically be changed to "{user}.{proxy_name}".<br />By default, this value is "".')],
 	[form.Flag, 'login_fail_exit', _('Exit when login fail'), _('LoginFailExit controls whether or not the client should exit after a failed login attempt. If false, the client will retry until a login attempt succeeds.<br />By default, this value is true.'), {datatype: 'bool', default: 'true'}]
 ];
@@ -54,19 +58,25 @@ var grpSecurityTLS = [
 ];
 
 var grpWeb = [
-	[form.Value, 'admin_addr', _('Admin address'), _('AdminAddr specifies the address that the admin server binds to.<br />By default, this value is "0.0.0.0".'), {datatype: 'ipaddr'}],
-	[form.Value, 'admin_port', _('Admin port'), _('AdminPort specifies the port for the admin server to listen on. If this value is 0, the admin server will not be started.<br />By default, this value is 0.'), {datatype: 'port'}],
-	[form.Value, 'admin_user', _('Admin user'), _('AdminUser specifies the username that the admin server will use for login.<br />By default, this value is "admin".')],
-	[form.Value, 'admin_pwd', _('Admin password'), _('AdminPwd specifies the password that the admin server will use for login.<br />By default, this value is "admin".'), {password: true}],
-	[form.Value, 'assets_dir', _('Assets dir'), _('AssetsDir specifies the local directory that the admin server will load resources from. If this value is "", assets will be loaded from the bundled executable using statik.<br />By default, this value is "".')]
+	[form.Value, 'webserver_addr', _('WebServer address'), _('WebServer address specifies the address that the admin server binds to.<br />By default, this value is "127.0.0.1".'), {datatype: 'ipaddr'}],
+	[form.Value, 'webserver_port', _('WebServer port'), _('WebServer port specifies the port for the admin server to listen on. If this value is 0, the admin server will not be started.<br />By default, this value is 0.'), {datatype: 'port'}],
+	[form.Value, 'webserver_user', _('WebServer user'), _('WebServer user specifies the username that the admin server will use for login.<br />By default, this value is "admin".')],
+	[form.Value, 'webserver_pwd', _('WebServer password'), _('WebServer password specifies the password that the admin server will use for login.<br />By default, this value is "admin".'), {password: true}],
+	[form.Value, 'assets_dir', _('Assets dir'), _('AssetsDir specifies the local directory that the admin server will load resources from. If this value is "", assets will be loaded from the bundled executable using statik.<br />By default, this value is "".')],
+	[form.Value, 'webserver_cert_file', _('WebServer TLS cert file'), _('TLS certificate file path for HTTPS admin UI (cert+key required).')],
+	[form.Value, 'webserver_key_file', _('WebServer TLS key file'), _('TLS private key file path for HTTPS admin UI.')],
+	[form.Value, 'webserver_ca_file', _('WebServer TLS CA file'), _('Optional trusted CA file path for client certificate verification.')]
 ];
 
 
 var grpLogging = [
-	[form.Value, 'log_file', _('Log file'), _('LogFile specifies a file where logs will be written to. This value will only be used if LogWay is set appropriately.<br />By default, this value is "console".')],
-	[form.ListValue, 'log_level', _('Log level'), _('LogLevel specifies the minimum log level. Valid values are "trace", "debug", "info", "warn", and "error".<br />By default, this value is "info".'), {values: ['trace', 'debug', 'info', 'warn', 'error']}],
-	[form.Value, 'log_max_days', _('Log max days'), _('LogMaxDays specifies the maximum number of days to store log information before deletion. This is only used if LogWay == "file".<br />By default, this value is 0.'), {datatype: 'uinteger'}],
-	[form.Flag, 'disable_log_color', _('Disable log color'), _('DisableLogColor disables log colors when LogWay == "console" when set to true.'), {datatype: 'bool', default: 'false'}]
+	[form.Value, 'log_to', _('Log output target'), _('Preferred new key. Use file path or special values: "console", "/dev/null". Empty = upstream default (console).')],
+	[form.Value, 'log_file', _('(Deprecated) legacy log_file'), _('Deprecated legacy key retained for compatibility; value will be migrated in-memory to log_to. Please move to "Log output target".'), {placeholder: '/var/log/frpc.log'}],
+	[form.ListValue, 'log_level', _('Log level'), _('Minimum log level.'), {values: ['trace', 'debug', 'info', 'warn', 'error']}],
+	[form.Value, 'log_max_days', _('Log max days'), _('Maximum days to retain file logs (file mode only).'), {datatype: 'uinteger'}],
+	[form.Flag, 'disable_log_color', _('Disable log color'), _('Disable ANSI color in console logs.'), {datatype: 'bool', default: 'false'}],
+	[form.Value, 'pool_count', _('Pool count'), _('transport.poolCount: number of pre-established connections (default 1).'), {datatype: 'uinteger'}]
+	[form.DynamicList, 'start_list', _('Start proxies list'), _('Only enable these proxies; empty means enable all defined proxies.') , {placeholder: 'proxyA'}]
 ];
 
 // Renamed '_' -> 'extra_settings' (keep backward compatibility)
