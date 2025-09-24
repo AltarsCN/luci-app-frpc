@@ -3,6 +3,7 @@
 'require ui';
 'require form';
 'require rpc';
+'require fs';
 'require tools.widgets as widgets';
 
 //	[Widget, Option, Title, Description, {Param: 'Value'}],
@@ -75,7 +76,7 @@ var grpLogging = [
 	[form.ListValue, 'log_level', _('Log level'), _('Minimum log level.'), {values: ['trace', 'debug', 'info', 'warn', 'error']}],
 	[form.Value, 'log_max_days', _('Log max days'), _('Maximum days to retain file logs (file mode only).'), {datatype: 'uinteger'}],
 	[form.Flag, 'disable_log_color', _('Disable log color'), _('Disable ANSI color in console logs.'), {datatype: 'bool', default: 'false'}],
-	[form.Value, 'pool_count', _('Pool count'), _('transport.poolCount: number of pre-established connections (default 1).'), {datatype: 'uinteger'}]
+	[form.Value, 'pool_count', _('Pool count'), _('transport.poolCount: number of pre-established connections (default 1).'), {datatype: 'uinteger'}],
 	[form.DynamicList, 'start_list', _('Start proxies list'), _('Only enable these proxies; empty means enable all defined proxies.') , {placeholder: 'proxyA'}]
 ];
 
@@ -158,14 +159,16 @@ function setParams(o, params) {
 			if (!Array.isArray(val))
 				val = [val];
 
+			// Merge with existing dependency rules if present; guard against undefined
+			var existing = Array.isArray(o.deps) ? o.deps : [];
 			var deps = [];
 			for (var j = 0; j < val.length; j++) {
 				var d = {};
 				for (var vkey in val[j])
 					d[vkey] = val[j][vkey];
-				for (var k = 0; k < o.deps.length; k++) {
-					for (var dkey in o.deps[k]) {
-						d[dkey] = o.deps[k][dkey];
+				for (var k = 0; k < existing.length; k++) {
+					for (var dkey in existing[k]) {
+						d[dkey] = existing[k][dkey];
 					}
 				}
 				deps.push(d);
@@ -239,6 +242,26 @@ function renderStatus(isRunning) {
 	return renderHTML;
 }
 
+// Execute init script action
+function serviceAction(action) {
+	return fs.exec('/etc/init.d/frpc', [ action ]).catch(function(e){ return { code: -1, stderr: (e && e.message) || '' }; });
+}
+
+function fmtNow() {
+	try { return new Date().toLocaleString(); } catch (e) { return new Date().toISOString(); }
+}
+
+function updateActionStatus(action, res) {
+	var el = document.getElementById('service_action_status');
+	if (!el) return;
+	var code = (res && typeof res.code !== 'undefined') ? res.code : 'n/a';
+	var msg = (res && res.stderr) ? ('' + res.stderr).trim() : '';
+	var ok = (code === 0);
+	el.innerText = String.format('%s: %s (code=%s) @ %s%s',
+		action.toUpperCase(), ok ? _('OK') : _('Failed'), code, fmtNow(), msg ? (' - ' + msg) : '');
+	el.style.color = ok ? 'green' : 'red';
+}
+
 return view.extend({
 	render: function() {
 		let m, s, o;
@@ -248,17 +271,26 @@ return view.extend({
 		s = m.section(form.NamedSection, '_status');
 		s.anonymous = true;
 		s.render = function (section_id) {
-			L.Poll.add(function () {
+			var refresh = function() {
 				return L.resolveDefault(getServiceStatus()).then(function(res) {
-					var view = document.getElementById("service_status");
-					view.innerHTML = renderStatus(res);
+					var view = document.getElementById('service_status');
+					if (view) view.innerHTML = renderStatus(res);
 				});
-			});
+			};
+
+			L.Poll.add(refresh);
 
 			return E('div', { class: 'cbi-map' },
 				E('fieldset', { class: 'cbi-section'}, [
-					E('p', { id: 'service_status' },
-						_('Collecting data ...'))
+					E('p', { id: 'service_status' }, _('Collecting data ...')),
+					E('div', { class: 'cbi-section-actions' }, [
+						E('button', { class: 'btn cbi-button-action', click: function(){ serviceAction('start').then(function(res){ updateActionStatus('start', res); }).then(refresh); } }, _('Start now')),
+						E('button', { class: 'btn cbi-button-reset', click: function(){ serviceAction('stop').then(function(res){ updateActionStatus('stop', res); }).then(refresh); } }, _('Stop')),
+						E('button', { class: 'btn cbi-button-reload', click: function(){ serviceAction('restart').then(function(res){ updateActionStatus('restart', res); }).then(refresh); } }, _('Restart'))
+					]),
+					E('div', { class: 'cbi-value-description' }, [
+						E('small', { id: 'service_action_status', style: 'opacity:0.85' }, _('No actions yet.'))
+					])
 				])
 			);
 		}
@@ -343,5 +375,13 @@ return view.extend({
 		defTabOpts(s, 'advanced', advProxyConf, {optional: true});
 
 		return m.render();
+	}
+,
+	// Restart frpc after Save & Apply so new config takes effect immediately
+	handleSaveApply: function(ev) {
+		var self = this;
+		return this.super('handleSaveApply', ev).then(function(res) {
+			return fs.exec('/etc/init.d/frpc', [ 'restart' ]).catch(function(e){ return null; }).then(function(){ return res; });
+		});
 	}
 });
