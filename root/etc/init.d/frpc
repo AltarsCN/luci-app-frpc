@@ -46,13 +46,10 @@ gen_config() {
 
 	# We'll parse UCI directly using uci show & awk for flexibility
 	# Read global
-	local server_addr server_port protocol auth_method token log_level log_to log_file log_max_days user tcp_mux heartbeat_interval heartbeat_timeout http_proxy tls_enable pool_count dial_server_timeout dial_server_keepalive connect_server_local_ip udp_packet_size
+	local server_addr server_port protocol auth_method token log_level log_file log_max_days user tcp_mux heartbeat_interval heartbeat_timeout http_proxy tls_enable
 	server_addr=$(uci_get common server_addr "127.0.0.1")
 	server_port=$(uci_get common server_port "7000")
 	protocol=$(uci_get common protocol "tcp")
-	dial_server_timeout=$(uci_get common dial_server_timeout "")
-	dial_server_keepalive=$(uci_get common dial_server_keepalive "")
-	connect_server_local_ip=$(uci_get common connect_server_local_ip "")
 	auth_method=$(uci_get common auth_method "token")
 	token=$(uci_get common token "")
 	# OIDC fields
@@ -62,13 +59,7 @@ gen_config() {
 	oidc_audience=$(uci_get common oidc_audience "")
 	oidc_token_endpoint_url=$(uci_get common oidc_token_endpoint_url "")
 	log_level=$(uci_get common log_level "info")
-	# New preferred key (v1 schema log.to); legacy log_file kept for migration
-	log_to=$(uci_get common log_to "")
 	log_file=$(uci_get common log_file "")
-	if [ -z "$log_to" ] && [ -n "$log_file" ]; then
-		# In-memory migrate; we do not persist automatically to avoid side effects
-		log_to="$log_file"
-	fi
 	log_max_days=$(uci_get common log_max_days "3")
 	user=$(uci_get common user "")
 	tcp_mux=$(uci_get common tcp_mux "1")
@@ -76,23 +67,16 @@ gen_config() {
 	heartbeat_timeout=$(uci_get common heartbeat_timeout "")
 	http_proxy=$(uci_get common http_proxy "")
 	tls_enable=$(uci_get common tls_enable "")
-	pool_count=$(uci_get common pool_count "")
-	udp_packet_size=$(uci_get common udp_packet_size "")
 
-	# Admin interface (WebServer)
-	local webserver_addr webserver_port webserver_user webserver_pwd assets_dir login_fail_exit disable_log_color webserver_cert_file webserver_key_file webserver_ca_file start_list_raw
-	webserver_addr=$(uci_get common webserver_addr "")
-	webserver_port=$(uci_get common webserver_port "")
-	webserver_user=$(uci_get common webserver_user "")
-	webserver_pwd=$(uci_get common webserver_pwd "")
+	# Admin interface
+	local admin_addr admin_port admin_user admin_pwd assets_dir login_fail_exit disable_log_color
+	admin_addr=$(uci_get common admin_addr "")
+	admin_port=$(uci_get common admin_port "")
+	admin_user=$(uci_get common admin_user "")
+	admin_pwd=$(uci_get common admin_pwd "")
 	assets_dir=$(uci_get common assets_dir "")
-	webserver_cert_file=$(uci_get common webserver_cert_file "")
-	webserver_key_file=$(uci_get common webserver_key_file "")
-	webserver_ca_file=$(uci_get common webserver_ca_file "")
 	login_fail_exit=$(uci_get common login_fail_exit "")
 	disable_log_color=$(uci_get common disable_log_color "")
-	# Gather start_list (DynamicList). Each appears as repeated option; use uci show for flexibility.
-	start_list_raw=$(uci -q show frpc.common | sed -n "s/^frpc.common.start_list='\(.*\)'/\1/p")
 
 	# OIDC warning collection
 	local _oidc_warn=""
@@ -109,12 +93,7 @@ gen_config() {
 		[ -n "$_oidc_warn" ] && printf '# WARNING: OIDC selected but missing:%s (auth likely to fail)\n' "$_oidc_warn"
 	} > "$TMP_CONFIG_TOML.tmp"
 	{
-		# Track core keys for conflict detection with extra_settings
-		local _core_keys="log.to log.level log.maxDays log.disableColor serverAddr serverPort transport.protocol transport.dialServerTimeout transport.dialServerKeepalive transport.connectServerLocalIP transport.tcpMuxKeepaliveInterval transport.tcpMux transport.tls.enable udpPacketSize transport.poolCount transport.heartbeatInterval transport.heartbeatTimeout auth.method auth.token auth.oidc.clientID auth.oidc.clientSecret auth.oidc.audience auth.oidc.tokenEndpointURL user transport.proxyURL loginFailExit start webServer.addr webServer.port webServer.user webServer.password webServer.assetsDir webServer.tls.certFile webServer.tls.keyFile webServer.tls.trustedCaFile"
-		# Logging: emit log.to for any non-empty non-console/dev/null target
-		if [ -n "$log_to" ] && [ "$log_to" != "console" ] && [ "$log_to" != "/dev/null" ]; then
-			echo "log.to = \"$log_to\""
-		fi
+		[ "$log_file" = "" ] || echo "log.file = \"$log_file\""
 		[ "$log_level" = "" ] || echo "log.level = \"$log_level\""
 		[ "$log_max_days" = "" ] || echo "log.maxDays = $log_max_days"
 		[ "$disable_log_color" = "" ] || echo "log.disableColor = $( [ "$disable_log_color" = 1 ] && echo true || echo false )"
@@ -122,25 +101,13 @@ gen_config() {
 		echo "serverAddr = \"$server_addr\""
 		echo "serverPort = $server_port"
 		[ "$protocol" = "" ] || echo "transport.protocol = \"$protocol\""
-		[ -n "$dial_server_timeout" ] && echo "transport.dialServerTimeout = $dial_server_timeout"
-		[ -n "$dial_server_keepalive" ] && echo "transport.dialServerKeepalive = $dial_server_keepalive"
-		[ -n "$connect_server_local_ip" ] && echo "transport.connectServerLocalIP = \"$connect_server_local_ip\""
 		[ "$tcp_mux_keepalive_interval" = "" ] || echo "transport.tcpMuxKeepaliveInterval = $tcp_mux_keepalive_interval"
-		echo "transport.tcpMux = $([ "$tcp_mux" = 1 ] && echo true || echo false)"
+		[ "$tcp_mux" = "" ] || echo "transport.tcpMux = $( [ "$tcp_mux" = 1 ] && echo true || echo false )"
 		[ "$tls_enable" = "" ] || echo "transport.tls.enable = $( [ "$tls_enable" = 1 ] && echo true || echo false )"
-		[ -n "$udp_packet_size" ] && echo "udpPacketSize = $udp_packet_size"
-		[ -n "$pool_count" ] && echo "transport.poolCount = $pool_count"
-		# Heartbeat logic: upstream disables heartbeatInterval/Timeout (=-1) automatically when tcpMux=true.
-		# If tcp_mux=1 and user left fields empty or set to defaults (30/90), omit to inherit upstream optimization.
-		if [ "$tcp_mux" = 1 ]; then
-			# only write if user explicitly provided non-empty AND not equal to upstream default pair
-			[ -n "$heartbeat_interval" ] && [ "$heartbeat_interval" != 30 ] && echo "transport.heartbeatInterval = $heartbeat_interval"
-			[ -n "$heartbeat_timeout" ] && [ "$heartbeat_timeout" != 90 ] && echo "transport.heartbeatTimeout = $heartbeat_timeout"
-		else
-			# tcpMux disabled: write if user provided value
-			[ -n "$heartbeat_interval" ] && echo "transport.heartbeatInterval = $heartbeat_interval"
-			[ -n "$heartbeat_timeout" ] && echo "transport.heartbeatTimeout = $heartbeat_timeout"
-		fi
+		[ "$heartbeat_interval" = "" ] && [ "$heartbeat_timeout" = "" ] || {
+			[ "$heartbeat_interval" = "" ] || echo "transport.heartbeatInterval = $heartbeat_interval"
+			[ "$heartbeat_timeout" = "" ] || echo "transport.heartbeatTimeout = $heartbeat_timeout"
+		}
 
 		if [ "$auth_method" = "oidc" ]; then
 			# Minimal required fields: clientID, clientSecret, audience, tokenEndpointURL
@@ -158,29 +125,13 @@ gen_config() {
 		[ "$user" = "" ] || echo "user = \"$user\""
 		[ "$http_proxy" = "" ] || echo "transport.proxyURL = \"$http_proxy\""
 		[ "$login_fail_exit" = "" ] || echo "loginFailExit = $( [ "$login_fail_exit" = 1 ] && echo true || echo false )"
-		if [ -n "$start_list_raw" ]; then
-			# Build TOML array start = ["p1","p2"]
-			local _sarr="" _item
-			for _item in $start_list_raw; do
-				[ -z "$_item" ] && continue
-				[ -n "$_sarr" ] && _sarr="$_sarr,"
-				_sarr="$_sarr\"$_item\""
-			done
-			[ -n "$_sarr" ] && echo "start = [$_sarr]"
-		fi
-		# Admin UI (webServer) - only generate if both addr and port are configured
-		if [ -n "$webserver_addr" ] && [ -n "$webserver_port" ] && [ "$webserver_port" != "0" ]; then
-			echo "webServer.addr = \"$webserver_addr\""
-			echo "webServer.port = $webserver_port"
-			[ -n "$webserver_user" ] && echo "webServer.user = \"$webserver_user\""
-			[ -n "$webserver_pwd" ] && echo "webServer.password = \"$webserver_pwd\""
-			[ -n "$assets_dir" ] && echo "webServer.assetsDir = \"$assets_dir\""
-			if [ -n "$webserver_cert_file" ] && [ -n "$webserver_key_file" ]; then
-				echo "webServer.tls.certFile = \"$webserver_cert_file\""
-				echo "webServer.tls.keyFile = \"$webserver_key_file\""
-				[ -n "$webserver_ca_file" ] && echo "webServer.tls.trustedCaFile = \"$webserver_ca_file\""
-			fi
-		fi
+		[ "$admin_addr" = "" ] || [ "$admin_port" = "" ] || {
+			echo "webServer.addr = \"$admin_addr\""
+			echo "webServer.port = $admin_port"
+			[ "$admin_user" = "" ] || echo "webServer.user = \"$admin_user\""
+			[ "$admin_pwd" = "" ] || echo "webServer.password = \"$admin_pwd\""
+			[ "$assets_dir" = "" ] || echo "webServer.assetsDir = \"$assets_dir\""
+		}
 
 		# Proxies: iterate sections named 'conf' excluding 'common'
 		# Additional settings dynamic injection: legacy '_' and new 'extra_settings'
@@ -191,10 +142,6 @@ gen_config() {
 		for kv in $_legacy_list $_new_list; do
 			[ -z "$kv" ] && continue
 			case "$kv" in *=*) key="${kv%%=*}" ; value="${kv#*=}" ;; *) continue ;; esac
-			if echo " $_core_keys " | grep -qw " $key " ; then
-				echo "# skipped duplicate extra setting '$key' (conflicts with core output)"
-				continue
-			fi
 			if echo "$_added_keys" | grep -qw "$key" ; then
 				continue
 			fi
@@ -304,32 +251,6 @@ start_service() {
 	local enabled
 	enabled=$(uci_get init enabled 0)
 	[ "$enabled" = "1" ] || { echo "frpc: disabled in UCI (init.enabled != 1)"; return 0; }
-
-	# One-time migration block
-	local migrated_flag
-	migrated_flag=$(uci -q get frpc.init.migration_done 2>/dev/null)
-	if [ "$migrated_flag" != 1 ]; then
-		# log_file -> log_to
-		local old_log new_log
-		old_log=$(uci -q get frpc.common.log_file 2>/dev/null)
-		new_log=$(uci -q get frpc.common.log_to 2>/dev/null)
-		if [ -n "$old_log" ] && [ -z "$new_log" ]; then
-			uci set frpc.common.log_to="$old_log"
-		fi
-		# Admin legacy names (defensive)
-		for f in admin_port admin_user admin_pwd assets_dir; do
-			val=$(uci -q get frpc.common.$f 2>/dev/null) || true
-			[ -z "$val" ] && continue
-			case $f in
-				admin_port) uci set frpc.common.webserver_port="$val" ;;
-				admin_user) uci set frpc.common.webserver_user="$val" ;;
-				admin_pwd) uci set frpc.common.webserver_pwd="$val" ;;
-				assets_dir) uci set frpc.common.assets_dir="$val" ;;
-			esac
-		done
-		uci set frpc.init.migration_done=1
-		uci commit frpc
-	fi
 
 	[ -x "$PROG" ] || { echo "frpc: binary $PROG not found or not executable"; return 1; }
 	gen_config || return 1

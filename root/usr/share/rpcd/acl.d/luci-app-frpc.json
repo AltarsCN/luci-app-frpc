@@ -7,12 +7,16 @@
 				"/etc/group": ["read"]
 			},
 			"ubus": {
-				"service": [ "list" ]
+				"service": [ "list" ],
+				"luci": [ "getInitList" ]
 			},
 			"uci": ["frpc"]
 		},
 		"write": {
-			"uci": ["frpc"]
+			"uci": ["frpc"],
+			"ubus": {
+				"luci": [ "setInitAction" ]
+			}
 		}
 	}
 }
