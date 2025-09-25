@@ -18,7 +18,7 @@ var startupConf = [
 	[form.DynamicList, 'conf_inc', _('Additional configs'), _('Config files include in temporary config file'), {placeholder: '/etc/frp/frpc.d/frpc_full.ini'}]
 ];
 
-// 分页分组：将原 Common Settings 拆分为多个逻辑标签页
+// Tabs grouping: split original Common Settings into multiple logical tabs
 var grpBasic = [
 	[form.Value, 'server_addr', _('Server address'), _('ServerAddr specifies the address of the server to connect to.<br />By default, this value is "127.0.0.1".'), {datatype: 'host'}],
 	[form.Value, 'server_port', _('Server port'), _('ServerPort specifies the port to connect to the server on.<br />By default, this value is 7000.'), {datatype: 'port'}],
@@ -41,7 +41,7 @@ var grpAuth = [
 	[form.Value, 'oidc_token_endpoint_url', _('OIDC Token Endpoint URL'), _('OIDC token endpoint URL used when auth.method = "oidc".'), {depends: {auth_method: 'oidc'}}]
 ];
 
-// Security & TLS (合并 TLS 与 QUIC)
+// Security & TLS (merged TLS and QUIC)
 var grpSecurityTLS = [
 	[form.Flag, 'tls_enable', _('TLS'), _('TLSEnable specifies whether or not TLS should be used when communicating with the server.'), {datatype: 'bool'}],
 	[form.Value, 'tls_cert_file', _('TLS cert file'), _('Client TLS certFile path.'), {datatype: 'file'}],
@@ -288,7 +288,7 @@ function renderStatus(isRunning) {
 
 // Exec frpc init.d action
 function serviceAction(action) {
-	// 先尝试使用 /etc/init.d/frpc 命令
+	// Try using the /etc/init.d/frpc command first
 	return fs.exec('/etc/init.d/frpc', [ action ])
 		.then(function(res) {
 			if (res && typeof res === 'object') {
@@ -298,7 +298,7 @@ function serviceAction(action) {
 		})
 		.catch(function(e) {
 			console.warn('Direct init.d call failed, trying alternative:', e);
-			// 如果直接调用失败，尝试使用 service 命令
+			// If direct call fails, try using the 'service' command
 			return fs.exec('service', [ 'frpc', action ])
 				.then(function(res) {
 					if (res && typeof res === 'object') {
@@ -308,7 +308,7 @@ function serviceAction(action) {
 				})
 				.catch(function(e2) {
 					console.error('Both service commands failed:', e, e2);
-					return { code: -1, stderr: '服务控制失败：' + (e2 && e2.message || '没有权限或命令不存在') };
+					return { code: -1, stderr: 'Service control failed: ' + (e2 && e2.message || 'permission denied or command not found') };
 				});
 		});
 }
@@ -364,7 +364,7 @@ return view.extend({
 		s = m.section(form.NamedSection, 'common', 'conf');
 		s.dynamic = true;
 
-		// 新分页标签
+		// New tabs
 		s.tab('basic', _('Basic'));
 		s.tab('auth', _('Authentication'));
 		s.tab('securitytls', _('Security & TLS'));

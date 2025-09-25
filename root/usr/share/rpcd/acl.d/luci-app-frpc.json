@@ -5,7 +5,13 @@
 			"file": {
 				"/etc/passwd": ["read"],
 				"/etc/group": ["read"],
-				"/etc/init.d/frpc": ["exec"]
+				"/etc/init.d/frpc *": [ "exec" ],
+				"/etc/init.d/frpc start": [ "exec" ],
+				"/etc/init.d/frpc stop": [ "exec" ],
+				"/etc/init.d/frpc restart": [ "exec" ],
+				"/etc/init.d/frpc reload": [ "exec" ],
+				"/etc/init.d/frpc enable": [ "exec" ],
+				"/etc/init.d/frpc disable": [ "exec" ]
 			},
 			"ubus": {
 				"service": [ "list" ]
