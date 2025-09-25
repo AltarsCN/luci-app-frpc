@@ -4,7 +4,8 @@
 		"read": {
 			"file": {
 				"/etc/passwd": ["read"],
-				"/etc/group": ["read"]
+				"/etc/group": ["read"],
+				"/etc/init.d/frpc": ["exec"]
 			},
 			"ubus": {
 				"service": [ "list" ]

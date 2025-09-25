@@ -3,6 +3,7 @@
 'require ui';
 'require form';
 'require rpc';
+'require fs';
 'require tools.widgets as widgets';
 
 //	[Widget, Option, Title, Description, {Param: 'Value'}],
@@ -229,6 +230,48 @@ function renderStatus(isRunning) {
 	return renderHTML;
 }
 
+// Exec frpc init.d action
+function serviceAction(action) {
+	// 先尝试使用 /etc/init.d/frpc 命令
+	return fs.exec('/etc/init.d/frpc', [ action ])
+		.then(function(res) {
+			if (res && typeof res === 'object') {
+				return res;
+			}
+			return { code: 0, stderr: '' };
+		})
+		.catch(function(e) {
+			console.warn('Direct init.d call failed, trying alternative:', e);
+			// 如果直接调用失败，尝试使用 service 命令
+			return fs.exec('service', [ 'frpc', action ])
+				.then(function(res) {
+					if (res && typeof res === 'object') {
+						return res;
+					}
+					return { code: 0, stderr: '' };
+				})
+				.catch(function(e2) {
+					console.error('Both service commands failed:', e, e2);
+					return { code: -1, stderr: '服务控制失败：' + (e2 && e2.message || '没有权限或命令不存在') };
+				});
+		});
+}
+
+function fmtNow() {
+	try { return new Date().toLocaleString(); } catch (e) { return new Date().toISOString(); }
+}
+
+function updateActionStatus(action, res) {
+	var el = document.getElementById('service_action_status');
+	if (!el) return;
+	var code = (res && typeof res.code !== 'undefined') ? res.code : 'n/a';
+	var msg = (res && res.stderr) ? ('' + res.stderr).trim() : '';
+	var ok = (code === 0);
+	el.innerText = String.format('%s: %s (code=%s) @ %s%s',
+		action.toUpperCase(), ok ? _('OK') : _('Failed'), code, fmtNow(), msg ? (' - ' + msg) : '');
+	el.style.color = ok ? 'green' : 'red';
+}
+
 return view.extend({
 	render: function() {
 		let m, s, o;
@@ -238,17 +281,26 @@ return view.extend({
 		s = m.section(form.NamedSection, '_status');
 		s.anonymous = true;
 		s.render = function (section_id) {
-			L.Poll.add(function () {
+			var refresh = function() {
 				return L.resolveDefault(getServiceStatus()).then(function(res) {
-					var view = document.getElementById("service_status");
-					view.innerHTML = renderStatus(res);
+					var view = document.getElementById('service_status');
+					if (view) view.innerHTML = renderStatus(res);
 				});
-			});
+			};
+
+			L.Poll.add(refresh);
 
 			return E('div', { class: 'cbi-map' },
 				E('fieldset', { class: 'cbi-section'}, [
-					E('p', { id: 'service_status' },
-						_('Collecting data ...'))
+					E('p', { id: 'service_status' }, _('Collecting data ...')),
+					E('div', { class: 'cbi-section-actions' }, [
+						E('button', { class: 'btn cbi-button-action', click: function(){ serviceAction('start').then(function(res){ updateActionStatus('start', res); }).then(refresh); } }, _('Start')),
+						E('button', { class: 'btn cbi-button-reset', click: function(){ serviceAction('stop').then(function(res){ updateActionStatus('stop', res); }).then(refresh); } }, _('Stop')),
+						E('button', { class: 'btn cbi-button-reload', click: function(){ serviceAction('restart').then(function(res){ updateActionStatus('restart', res); }).then(refresh); } }, _('Restart'))
+					]),
+					E('div', { class: 'cbi-value-description' }, [
+						E('small', { id: 'service_action_status', style: 'opacity:0.85' }, _('No actions yet.'))
+					])
 				])
 			);
 		}
@@ -333,5 +385,13 @@ return view.extend({
 		defTabOpts(s, 'advanced', advProxyConf, {optional: true});
 
 		return m.render();
+	}
+,
+	// Restart frpc after Save & Apply to apply new config immediately
+	handleSaveApply: function(ev) {
+		var self = this;
+		return this.super('handleSaveApply', ev).then(function(res) {
+			return fs.exec('/etc/init.d/frpc', [ 'restart' ]).catch(function(e){ return null; }).then(function(){ return res; });
+		});
 	}
 });
