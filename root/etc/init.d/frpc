@@ -46,7 +46,7 @@ gen_config() {
 
 	# We'll parse UCI directly using uci show & awk for flexibility
 	# Read global
-	local server_addr server_port protocol auth_method token log_level log_file log_max_days user tcp_mux heartbeat_interval heartbeat_timeout http_proxy tls_enable
+	local server_addr server_port protocol auth_method token log_level log_to log_file log_max_days user tcp_mux heartbeat_interval heartbeat_timeout http_proxy tls_enable
 	server_addr=$(uci_get common server_addr "127.0.0.1")
 	server_port=$(uci_get common server_port "7000")
 	protocol=$(uci_get common protocol "tcp")
@@ -59,7 +59,9 @@ gen_config() {
 	oidc_audience=$(uci_get common oidc_audience "")
 	oidc_token_endpoint_url=$(uci_get common oidc_token_endpoint_url "")
 	log_level=$(uci_get common log_level "info")
+	log_to=$(uci_get common log_to "")
 	log_file=$(uci_get common log_file "")
+	[ -z "$log_to" ] && log_to="$log_file"
 	log_max_days=$(uci_get common log_max_days "3")
 	user=$(uci_get common user "")
 	tcp_mux=$(uci_get common tcp_mux "1")
@@ -93,10 +95,10 @@ gen_config() {
 		[ -n "$_oidc_warn" ] && printf '# WARNING: OIDC selected but missing:%s (auth likely to fail)\n' "$_oidc_warn"
 	} > "$TMP_CONFIG_TOML.tmp"
 	{
-		[ "$log_file" = "" ] || echo "log.file = \"$log_file\""
+		[ "$log_to" = "" ] || echo "log.to = \"$log_to\""
 		[ "$log_level" = "" ] || echo "log.level = \"$log_level\""
 		[ "$log_max_days" = "" ] || echo "log.maxDays = $log_max_days"
-		[ "$disable_log_color" = "" ] || echo "log.disableColor = $( [ "$disable_log_color" = 1 ] && echo true || echo false )"
+		[ "$disable_log_color" = "" ] || echo "log.disablePrintColor = $( [ "$disable_log_color" = 1 ] && echo true || echo false )"
 
 		echo "serverAddr = \"$server_addr\""
 		echo "serverPort = $server_port"

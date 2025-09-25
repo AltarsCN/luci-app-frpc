@@ -217,6 +217,14 @@ msgstr "位置"
 msgid "Log file"
 msgstr "日志文件"
 
+#: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:23
+msgid "Log output target"
+msgstr "日志输出目标"
+
+#: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:23
+msgid "Preferred new key. Accepts a file path or special values: \"console\", \"/dev/null\". Leave empty for upstream default (console)."
+msgstr "推荐使用的新字段。可填写文件路径，或特殊值 \"console\"、\"/dev/null\"。留空则使用上游默认（console）。"
+
 #: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:24
 msgid "Log level"
 msgstr "日志级别"
@@ -224,6 +232,14 @@ msgstr "日志级别"
 #: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:25
 msgid "Log max days"
 msgstr "日志最大天数"
+
+#: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:24
+msgid "(Deprecated) legacy log_file"
+msgstr "（已弃用）旧版 log_file"
+
+#: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:24
+msgid "Deprecated legacy key retained for backward compatibility. Will be migrated to log_to in runtime; please move value to \"Log output target\" and clear this."
+msgstr "为兼容旧版本保留的字段，运行时会迁移到 log_to；请将值移动到“日志输出目标”并清空此项。"
 
 #: applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js:11
 msgid "Log stderr"

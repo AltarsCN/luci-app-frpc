@@ -64,10 +64,11 @@ var grpWeb = [
 
 
 var grpLogging = [
-	[form.Value, 'log_file', _('Log file'), _('LogFile specifies a file where logs will be written to. This value will only be used if LogWay is set appropriately.<br />By default, this value is "console".')],
+	[form.Value, 'log_to', _('Log output target'), _('Preferred new key. Accepts a file path or special values: "console", "/dev/null". Leave empty for upstream default (console).')],
+	[form.Value, 'log_file', _('(Deprecated) legacy log_file'), _('Deprecated legacy key retained for backward compatibility. Will be migrated to log_to in runtime; please move value to "Log output target" and clear this.'), {placeholder: '/tmp/log/frpc.log'}],
 	[form.ListValue, 'log_level', _('Log level'), _('LogLevel specifies the minimum log level. Valid values are "trace", "debug", "info", "warn", and "error".<br />By default, this value is "info".'), {values: ['trace', 'debug', 'info', 'warn', 'error']}],
-	[form.Value, 'log_max_days', _('Log max days'), _('LogMaxDays specifies the maximum number of days to store log information before deletion. This is only used if LogWay == "file".<br />By default, this value is 0.'), {datatype: 'uinteger'}],
-	[form.Flag, 'disable_log_color', _('Disable log color'), _('DisableLogColor disables log colors when LogWay == "console" when set to true.'), {datatype: 'bool', default: 'false'}]
+	[form.Value, 'log_max_days', _('Log max days'), _('Maximum days to retain file logs when the output target is a file.'), {datatype: 'uinteger'}],
+	[form.Flag, 'disable_log_color', _('Disable log color'), _('Disable ANSI color codes in console logs.'), {datatype: 'bool', default: 'false'}]
 ];
 
 // Renamed '_' -> 'extra_settings' (keep backward compatibility)
@@ -178,17 +179,51 @@ function defTabOpts(s, t, opts, params) {
 		var o = s.taboption(t, opt[0], opt[1], opt[2], opt[3]);
 		setParams(o, opt[4]);
 		setParams(o, params);
-		if (o instanceof form.DynamicList) {
+		if (typeof o.remove === 'function') {
 			(function(orig) {
 				o.remove = function(section_id) {
-					var cur = this.map.data.get(this.map.config, section_id, this.option);
-					if (cur == null)
-						return Promise.resolve();
-					return orig.apply(this, arguments);
+					if (this.option) {
+						var cur = this.map.data.get(this.map.config, section_id, this.option);
+						if (cur == null)
+							return Promise.resolve();
+					}
+					var res = orig.apply(this, arguments);
+					return Promise.resolve(res).catch(function(err) {
+						var msg = err && err.message ? err.message : err;
+						if (msg) {
+							var text = '' + msg;
+							if (text.indexOf('uci/delete') !== -1 || text.indexOf('Not found') !== -1 || text.indexOf('code 4') !== -1)
+								return Promise.resolve();
+						}
+						throw err;
+					});
 				};
 			})(o.remove);
 		}
 	}
+}
+
+function isIgnorableUciDeleteError(err) {
+	if (!err)
+		return false;
+	var msg = '';
+	if (err.message)
+		msg = err.message;
+	else if (typeof err === 'string')
+		msg = err;
+	else
+		msg = '' + err;
+	return (msg.indexOf('uci/delete') !== -1) && (msg.indexOf('Not found') !== -1 || msg.indexOf('code 4') !== -1);
+}
+
+function swallowUciDelete(promise) {
+	return Promise.resolve(promise).catch(function(err) {
+		if (isIgnorableUciDeleteError(err)) {
+			console.warn('Ignoring benign UCI delete failure:', err);
+			return null;
+		}
+		throw err;
+	});
 }
 
 function defOpts(s, opts, params) {
@@ -197,6 +232,27 @@ function defOpts(s, opts, params) {
 		var o = s.option(opt[0], opt[1], opt[2], opt[3]);
 		setParams(o, opt[4]);
 		setParams(o, params);
+		if (typeof o.remove === 'function') {
+			(function(orig) {
+				o.remove = function(section_id) {
+					if (this.option) {
+						var cur = this.map.data.get(this.map.config, section_id, this.option);
+						if (cur == null)
+							return Promise.resolve();
+					}
+					var res = orig.apply(this, arguments);
+					return Promise.resolve(res).catch(function(err) {
+						var msg = err && err.message ? err.message : err;
+						if (msg) {
+							var text = '' + msg;
+							if (text.indexOf('uci/delete') !== -1 || text.indexOf('Not found') !== -1 || text.indexOf('code 4') !== -1)
+								return Promise.resolve();
+						}
+						throw err;
+					});
+				};
+			})(o.remove);
+		}
 	}
 }
 
@@ -387,10 +443,15 @@ return view.extend({
 		return m.render();
 	}
 ,
+	// Suppress harmless "uci/delete code 4" errors during save cycles
+	handleSave: function(ev) {
+		return swallowUciDelete(this.super('handleSave', ev));
+	},
+
 	// Restart frpc after Save & Apply to apply new config immediately
 	handleSaveApply: function(ev) {
 		var self = this;
-		return this.super('handleSaveApply', ev).then(function(res) {
+		return swallowUciDelete(this.super('handleSaveApply', ev)).then(function(res) {
 			return fs.exec('/etc/init.d/frpc', [ 'restart' ]).catch(function(e){ return null; }).then(function(){ return res; });
 		});
 	}
