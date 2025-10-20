@@ -291,4 +291,25 @@ reload_service() {
 	start
 }
 
-
+# qa_example: echo a minimal illustrative example of produced TOML (debug helper, not invoked automatically)
+qa_example() {
+	cat <<'EOF'
+# Example (illustrative) frpc.toml
+serverAddr = "1.2.3.4"
+serverPort = 7000
+transport.protocol = "quic"
+transport.tls.enable = true
+auth.method = "token"
+auth.token = "SECRET"
+[[proxies]]
+name = "web1"
+type = "http"
+localIP = "127.0.0.1"
+localPort = 8080
+customDomains = ["site.example.com"]
+healthCheck.type = "http"
+healthCheck.path = "/health"
+healthCheck.intervalSeconds = 10
+transport.bandwidthLimit = "10MB"
+EOF
+}
