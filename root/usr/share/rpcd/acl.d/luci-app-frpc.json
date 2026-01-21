@@ -7,13 +7,14 @@
 				"/etc/group": ["read"]
 			},
 			"ubus": {
-				"service": [ "list" ]
+				"service": [ "list" ],
+				"rc": [ "list" ]
 			},
 			"uci": ["frpc"]
 		},
 		"write": {
-			"file": {
-				"/etc/init.d/frpc": [ "exec" ]
+			"ubus": {
+				"rc": [ "init" ]
 			},
 			"uci": ["frpc"]
 		}
